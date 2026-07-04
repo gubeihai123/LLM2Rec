@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from accelerate.logging import get_logger
@@ -27,10 +28,21 @@ from peft import LoraConfig, get_peft_model
 from llm2vec import LLM2Vec
 from dataset_utils import load_dataset
 from llm2vec.loss.utils import load_loss
+from modules.crds_utils import crds_hard_negative_loss, select_crds_negatives
 
 from tqdm import tqdm
 
 transformers.logging.set_verbosity_error()
+
+_original_torch_load = torch.load
+
+
+def _torch_load_compat(*args, **kwargs):
+    kwargs.setdefault("weights_only", False)
+    return _original_torch_load(*args, **kwargs)
+
+
+torch.load = _torch_load_compat
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -203,6 +215,47 @@ class CustomArguments:
         default=50.0, metadata={"help": "The loss scale for the loss function"}
     )
 
+    use_crds_simcse: bool = field(
+        default=False,
+        metadata={"help": "Whether to add CRDS hard negatives during SimCSE/IEM training."},
+    )
+
+    crds_pairs_path: Optional[str] = field(
+        default=None,
+        metadata={"help": "Path to the precomputed CRDS pairs file."},
+    )
+
+    crds_weight: float = field(
+        default=0.05,
+        metadata={"help": "Weight for the CRDS hard-negative loss."},
+    )
+
+    crds_tau: Optional[float] = field(
+        default=0.2,
+        metadata={"help": "Temperature for the CRDS hard-negative loss."},
+    )
+
+    crds_num_neg_per_anchor: int = field(
+        default=4,
+        metadata={"help": "Number of CRDS hard negatives to use per anchor item."},
+    )
+
+    crds_no_reliability: bool = field(
+        default=False,
+        metadata={"help": "Accepted for experiment parity; pairs should usually be built with this setting already."},
+    )
+
+    crds_no_transition: bool = field(
+        default=False,
+        metadata={"help": "Accepted for experiment parity; pairs should usually be built with this setting already."},
+    )
+
+    crds_no_cooccurrence: bool = field(
+        default=False,
+        metadata={"help": "Accepted for experiment parity; pairs should usually be built with this setting already."},
+    )
+
+
 
 @dataclass
 class DefaultCollator:
@@ -232,6 +285,52 @@ class DefaultCollator:
         return sentence_features, labels
 
 
+class CRDSCollator(DefaultCollator):
+    def __init__(
+        self,
+        model: LLM2Vec,
+        dataset,
+        pair_data: Dict[str, Any],
+        num_neg_per_anchor: int,
+    ) -> None:
+        super().__init__(model)
+        self.dataset = dataset
+        self.pair_data = pair_data
+        self.num_neg_per_anchor = num_neg_per_anchor
+
+    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
+        sentence_features, labels = super().__call__(features)
+        item_ids = torch.tensor([example.item_id for example in features], dtype=torch.long)
+        crds_batch = select_crds_negatives(
+            self.pair_data,
+            anchor_item_ids=item_ids,
+            num_neg_per_anchor=self.num_neg_per_anchor,
+        )
+
+        neg_sentence_features = None
+        if crds_batch["unique_neg_ids"].numel() > 0:
+            neg_texts = self.dataset.get_item_inputs(crds_batch["unique_neg_ids"].tolist())
+            neg_sentence_features = self.model.tokenize(neg_texts)
+
+        return {
+            "sentence_features": sentence_features,
+            "labels": labels,
+            "item_ids": item_ids,
+            "neg_sentence_features": neg_sentence_features,
+            "neg_ids": crds_batch["neg_ids"],
+            "neg_weights": crds_batch["neg_weights"],
+            "neg_pair_reliability": crds_batch["pair_reliability"],
+            "neg_semantic_similarity": crds_batch["neg_semantic_similarity"],
+            "neg_cf_distance": crds_batch["neg_cf_distance"],
+            "valid_crds_mask": crds_batch["valid_mask"],
+            "neg_inverse_indices": crds_batch["neg_inverse_indices"],
+            "num_valid_crds_neg": torch.tensor(
+                int(crds_batch["valid_mask"].sum().item()),
+                dtype=torch.long,
+            ),
+        }
+
+
 class StopTrainingCallback(TrainerCallback):
     def __init__(self, stop_after_n_steps: int):
         self.stop_after_n_steps = stop_after_n_steps
@@ -246,10 +345,17 @@ class SimCSETrainer(Trainer):
         self,
         *args,
         loss_function=None,
+        use_crds_simcse: bool = False,
+        crds_weight: float = 0.05,
+        crds_tau: float = 0.2,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.loss_function = loss_function
+        self.use_crds_simcse = use_crds_simcse
+        self.crds_weight = crds_weight
+        self.crds_tau = crds_tau
+        self.latest_crds_logs = {}
 
     def compute_loss(
         self,
@@ -257,7 +363,11 @@ class SimCSETrainer(Trainer):
         inputs: Dict[str, Union[torch.Tensor, Any]],
         return_outputs: bool = False,
     ) -> Union[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-        features, labels = inputs
+        if self.use_crds_simcse:
+            features = inputs["sentence_features"]
+            labels = inputs["labels"]
+        else:
+            features, labels = inputs
         q_reps = self.model(features[0])
         d_reps = self.model(features[1])
 
@@ -265,7 +375,54 @@ class SimCSETrainer(Trainer):
         if len(features) > 2:
             d_reps_neg = self.model(features[2])
 
-        loss = self.loss_function(q_reps, d_reps, d_reps_neg)
+        loss_simcse = self.loss_function(q_reps, d_reps, d_reps_neg)
+        loss_crds = q_reps.new_zeros(())
+        avg_crds_neg_weight = q_reps.new_zeros(())
+        avg_crds_reliability = q_reps.new_zeros(())
+        avg_crds_semantic_similarity = q_reps.new_zeros(())
+        avg_crds_cf_distance = q_reps.new_zeros(())
+        num_valid_crds_neg = 0
+
+        if self.use_crds_simcse:
+            num_valid_crds_neg = int(inputs["num_valid_crds_neg"].item())
+            if num_valid_crds_neg > 0 and inputs["neg_sentence_features"] is not None:
+                neg_unique_reps = self.model(inputs["neg_sentence_features"])
+                valid_crds_mask = inputs["valid_crds_mask"]
+                neg_inverse_indices = inputs["neg_inverse_indices"]
+                neg_weights = inputs["neg_weights"]
+
+                h_neg = q_reps.new_zeros(
+                    valid_crds_mask.size(0),
+                    valid_crds_mask.size(1),
+                    neg_unique_reps.size(-1),
+                )
+                h_neg[valid_crds_mask] = neg_unique_reps[neg_inverse_indices[valid_crds_mask]]
+                loss_crds, valid_rows = crds_hard_negative_loss(
+                    h1=q_reps,
+                    h2=d_reps,
+                    h_neg=h_neg,
+                    neg_weights=neg_weights,
+                    tau=self.crds_tau,
+                    valid_mask=valid_crds_mask,
+                )
+
+                if valid_crds_mask.any():
+                    avg_crds_neg_weight = neg_weights[valid_crds_mask].mean()
+                    avg_crds_reliability = inputs["neg_pair_reliability"][valid_crds_mask].mean()
+                    avg_crds_semantic_similarity = inputs["neg_semantic_similarity"][valid_crds_mask].mean()
+                    avg_crds_cf_distance = inputs["neg_cf_distance"][valid_crds_mask].mean()
+
+        loss = loss_simcse + self.crds_weight * loss_crds
+        self.latest_crds_logs = {
+            "loss_simcse": float(loss_simcse.detach().cpu().item()),
+            "loss_crds": float(loss_crds.detach().cpu().item()),
+            "loss_total": float(loss.detach().cpu().item()),
+            "avg_crds_neg_weight": float(avg_crds_neg_weight.detach().cpu().item()),
+            "avg_crds_reliability": float(avg_crds_reliability.detach().cpu().item()),
+            "avg_crds_semantic_similarity": float(avg_crds_semantic_similarity.detach().cpu().item()),
+            "avg_crds_cf_distance": float(avg_crds_cf_distance.detach().cpu().item()),
+            "num_valid_crds_neg": float(num_valid_crds_neg),
+        }
 
         if return_outputs:
             output = torch.cat(
@@ -274,6 +431,11 @@ class SimCSETrainer(Trainer):
             return loss, output
 
         return loss
+
+    def log(self, logs: Dict[str, float]) -> None:
+        if self.use_crds_simcse and "loss" in logs and "eval_loss" not in logs:
+            logs.update(self.latest_crds_logs)
+        super().log(logs)
 
     def _save(self, output_dir: Optional[str] = None, state_dict=None):
         # If we are executing this function, we are the process zero, so we don't check for that.
@@ -355,6 +517,8 @@ def main():
         attn_implementation=model_args.attn_implementation,
         attention_dropout=custom_args.simcse_dropout,
     )
+    if not hasattr(model, "_keys_to_ignore_on_save"):
+        model._keys_to_ignore_on_save = None
 
     # model organization is LLM2VecModel.model -> HF Model, we have to apply PEFT to the inner model
     if custom_args.lora_r is not None:
@@ -372,7 +536,19 @@ def main():
 
     train_loss = load_loss(custom_args.loss_class, scale=custom_args.loss_scale)
 
-    data_collator = DefaultCollator(model)
+    crds_pair_data = None
+    if custom_args.use_crds_simcse:
+        if not custom_args.crds_pairs_path:
+            raise ValueError("`use_crds_simcse=true` requires `crds_pairs_path`.")
+        crds_pair_data = torch.load(custom_args.crds_pairs_path, map_location="cpu")
+        data_collator = CRDSCollator(
+            model=model,
+            dataset=train_dataset,
+            pair_data=crds_pair_data,
+            num_neg_per_anchor=custom_args.crds_num_neg_per_anchor,
+        )
+    else:
+        data_collator = DefaultCollator(model)
 
     print(training_args)
     
@@ -383,12 +559,20 @@ def main():
         data_collator=data_collator,
         tokenizer=tokenizer,
         loss_function=train_loss,
+        use_crds_simcse=custom_args.use_crds_simcse,
+        crds_weight=custom_args.crds_weight,
+        crds_tau=custom_args.crds_tau if custom_args.crds_tau is not None else 1.0 / custom_args.loss_scale,
     )
 
     if custom_args.stop_after_n_steps is not None:
         trainer.add_callback(StopTrainingCallback(custom_args.stop_after_n_steps))
 
-    trainer.train()
+    if training_args.resume_from_checkpoint:
+        logger.info(
+            "Resuming SimCSE training from checkpoint %s",
+            training_args.resume_from_checkpoint,
+        )
+    trainer.train(resume_from_checkpoint=training_args.resume_from_checkpoint)
 
 
 if __name__ == "__main__":

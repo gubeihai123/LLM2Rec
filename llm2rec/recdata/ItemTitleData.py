@@ -29,6 +29,7 @@ class ItemTitleData(Dataset):
         self.separator = separator
 
         self.data = []
+        self.item_inputs = []
         self.load_data(file_path)
 
     def __len__(self):
@@ -41,6 +42,7 @@ class ItemTitleData(Dataset):
         data_map = {}
         all_samples = []
         id_ = 0
+        self.item_inputs = []
         for dataset in AMAZON_DATASET_NAME_MAPPING:
             logger.info(f"Loading dataset {dataset}...")
             if dataset not in data_map:
@@ -56,6 +58,7 @@ class ItemTitleData(Dataset):
                 query = self.separator + sample
                 pos = self.separator + sample
                 data_map[dataset].append(id_)
+                self.item_inputs.append(query)
 
                 all_samples.append(
                     DataSample(
@@ -108,7 +111,13 @@ class ItemTitleData(Dataset):
         sample = self.data[index]
         if self.split == "train":
             return TrainSample(
-                texts=[sample.query, sample.positive], label=1.0
+                texts=[sample.query, sample.positive], label=1.0, item_id=sample.id_
             )
         elif self.split == "validation":
             assert False, "RecData does not have a validation split."
+
+    def get_item_input(self, item_id: int) -> str:
+        return self.item_inputs[item_id]
+
+    def get_item_inputs(self, item_ids):
+        return [self.get_item_input(int(item_id)) for item_id in item_ids]

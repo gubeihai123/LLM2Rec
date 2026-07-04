@@ -1,5 +1,6 @@
 # datasets/
 .vscode/
+.venv/
 data
 data/
 data_EasyRec_setting/
@@ -20,6 +21,7 @@ seqrec/ckpt/
 cache/
 
 Rebuttal/
+experiments/
 
 *.log
 *.pdf

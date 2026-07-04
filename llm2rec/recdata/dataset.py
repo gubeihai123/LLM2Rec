@@ -20,7 +20,12 @@ class TrainSample:
     """
 
     def __init__(
-        self, guid: str = "", texts: List[str] = None, label: Union[int, float] = 0
+        self,
+        guid: str = "",
+        texts: List[str] = None,
+        label: Union[int, float] = 0,
+        item_id: int = None,
+        metadata: dict = None,
     ):
         """
         Creates one TrainSample with the given texts, guid and label
@@ -36,6 +41,8 @@ class TrainSample:
         self.guid = guid
         self.texts = texts
         self.label = label
+        self.item_id = item_id
+        self.metadata = metadata or {}
 
     def __str__(self):
         return "<TrainSample> label: {}, texts: {}".format(

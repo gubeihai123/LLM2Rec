@@ -1,0 +1,38 @@
+crds_dataset: AmazonMix-6
+crds_data_root: data
+crds_raw_train_path: data/AmazonMix-6/5-core/train/AmazonMix-6.csv
+crds_sequence_path: ""
+crds_item_info_path: data/AmazonMix-6/5-core/info/AmazonMix-6.txt
+crds_user_id_map_path: ""
+
+crds_item_sem_embedding: item_sem_emb.pt
+crds_item_cf_embedding: item_cf_emb.pt
+crds_user_cf_embedding: user_cf_emb.pt
+crds_pairs_path: cache/crds/AmazonMix-6/crds_pairs.pt
+
+use_crds_simcse: true
+crds_weight: 0.05
+crds_tau: 0.2
+crds_num_neg_per_anchor: 4
+
+semantic_topk: 200
+num_hard_neg: 20
+K_user: 64
+M_item: 64
+alpha: 10.0
+beta: 10.0
+lambda_user: 0.5
+tau_n: 20.0
+delta_r: 0.3
+gamma_s: 10.0
+gamma_c: 10.0
+crds_quantile: 0.75
+
+crds_no_reliability: false
+crds_no_transition: false
+crds_no_cooccurrence: false
+
+crds_build_chunk_size: 1024
+crds_kmeans_iters: 25
+crds_kmeans_seed: 2024
+crds_kmeans_device: auto

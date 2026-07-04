@@ -16,4 +16,4 @@ CUDA_VISIBLE_DEVICES=${gpu_id} torchrun --nproc_per_node=1 --master_port=29501 .
 echo "Starting Stage 3 - Train SimCSE..."
 latest_mntp_ckpt=$(ls -d ${iem_stage1_dir}/checkpoint-* | sort -V | tail -n 1)
 cp ${model_path}/*token* ${latest_mntp_ckpt}/
-CUDA_VISIBLE_DEVICES=${gpu_id} torchrun --nproc_per_node=1 --master_port=29502 ./llm2rec/run_unsupervised_SimCSE.py ./llm2rec/train_simcse_config.json
+CUDA_VISIBLE_DEVICES=${gpu_id} torchrun --nproc_per_node=1 --master_port=29502 ./llm2rec/run_unsupervised_SimCSE.py ./llm2rec/train_simcse_config.json "$@"

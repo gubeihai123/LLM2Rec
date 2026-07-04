@@ -25,6 +25,11 @@
     "save_steps": 100,
     "stop_after_n_steps": 1000,
     "loss_scale": 10.0,
+    "use_crds_simcse": false,
+    "crds_pairs_path": null,
+    "crds_weight": 0.05,
+    "crds_tau": 0.2,
+    "crds_num_neg_per_anchor": 4,
     
     "lora_r": null,
     "gradient_checkpointing": true,
