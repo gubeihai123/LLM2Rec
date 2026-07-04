@@ -1,0 +1,13 @@
+{
+    "model": "SASRec",
+    "dataset": "Sports_5core",
+    "exp_type": "srec",
+    "embedding": "./item_info/Sports_5core/EasyRec_title_item_embs.npy",
+    "seq_embedding": "",
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "dropout": 0.3,
+    "loss_type": "ce",
+    "run_id": "EasyRec",
+    "rand_seed": 2026
+}

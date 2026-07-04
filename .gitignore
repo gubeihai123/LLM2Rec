@@ -14,10 +14,8 @@ wandb/
 output/
 
 seqrec/ckpt/
-item_info/
-item_info
+/item_info/
 cache/
-Results/
 
 Rebuttal/
 
