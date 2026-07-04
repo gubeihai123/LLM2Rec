@@ -16,8 +16,7 @@ output/
 models/
 
 seqrec/ckpt/
-item_info/
-item_info
+/item_info/
 cache/
 
 Rebuttal/
