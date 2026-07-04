@@ -30,6 +30,8 @@
     "crds_weight": 0.05,
     "crds_tau": 0.2,
     "crds_num_neg_per_anchor": 4,
+    "crds_neg_sampling": "random_top",
+    "crds_random_top_pool_size": 20,
     
     "lora_r": null,
     "gradient_checkpointing": true,

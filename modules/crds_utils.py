@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -8,6 +9,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
+
+logger = logging.getLogger(__name__)
 
 
 DATASET_SOURCE_DICT = {
@@ -212,6 +215,36 @@ def align_item_tensor_for_pairs(
     )
 
 
+def stable_global_quantile(
+    values: torch.Tensor,
+    quantile: float,
+    sample_size: int = 2_000_000,
+    seed: int = 2024,
+) -> torch.Tensor:
+    flat_cpu = values.detach().reshape(-1).float().cpu()
+    if flat_cpu.numel() == 0:
+        raise ValueError("Cannot compute quantile for an empty tensor.")
+    try:
+        return torch.quantile(flat_cpu, quantile)
+    except RuntimeError as exc:
+        logger.warning(
+            "Global quantile on %s values failed with %s; falling back to sampled estimate (%s values).",
+            flat_cpu.numel(),
+            exc,
+            min(sample_size, flat_cpu.numel()),
+        )
+        if flat_cpu.numel() > sample_size:
+            generator = torch.Generator(device="cpu")
+            generator.manual_seed(seed)
+            indices = torch.randint(
+                flat_cpu.numel(),
+                (sample_size,),
+                generator=generator,
+            )
+            flat_cpu = flat_cpu.index_select(0, indices)
+        return torch.quantile(flat_cpu, quantile)
+
+
 def build_crds_pairs(
     dataset: Optional[str],
     item_sem_path: Union[str, Path],
@@ -238,6 +271,7 @@ def build_crds_pairs(
     use_transition: bool = True,
     use_reliability: bool = True,
     pair_mode: str = "crds",
+    global_hard_filter_quantile: Optional[float] = 0.75,
     chunk_size: int = 1024,
     kmeans_iters: int = 25,
     kmeans_seed: int = 2024,
@@ -318,39 +352,15 @@ def build_crds_pairs(
         chunk_size=chunk_size,
         device=kmeans_device,
     )
-
-    neg_items = torch.full((item_num, num_hard_neg), -1, dtype=torch.long)
-    neg_weights = torch.zeros((item_num, num_hard_neg), dtype=torch.float32)
-    neg_semantic_similarity = torch.zeros((item_num, num_hard_neg), dtype=torch.float32)
-    neg_cf_distance = torch.zeros((item_num, num_hard_neg), dtype=torch.float32)
-    item_user_sets = stats.get("item_user_sets")
-
-    for item_idx in range(item_num):
-        candidate_idx = semantic_indices[item_idx]
-        semantic_similarity = semantic_similarities[item_idx]
-
-        if pair_mode == "no_cooccurrence":
-            valid_mask = filter_no_cooccurrence_candidates(item_idx, candidate_idx, item_user_sets)
-            candidate_idx = candidate_idx[valid_mask]
-            semantic_similarity = semantic_similarity[valid_mask]
-
-        if candidate_idx.numel() == 0:
-            continue
-
-        pair_reliability = torch.minimum(
-            reliability[item_idx].expand(candidate_idx.size(0)),
-            reliability[candidate_idx],
-        )
-        reliability_gate = (
-            (pair_reliability >= delta_r).float()
-            if use_reliability
-            else torch.ones_like(pair_reliability)
-        )
-
-        if pair_mode == "no_cooccurrence":
-            cf_distance = torch.zeros_like(semantic_similarity)
-            hard_score = normalize_values(semantic_similarity) * pair_reliability * reliability_gate
-        else:
+    candidate_pair_reliability = torch.minimum(
+        reliability.unsqueeze(1).expand(-1, semantic_indices.size(1)),
+        reliability[semantic_indices],
+    )
+    candidate_cf_distance = None
+    if pair_mode != "no_cooccurrence":
+        candidate_cf_distance = torch.zeros_like(semantic_similarities)
+        for item_idx in range(item_num):
+            candidate_idx = semantic_indices[item_idx]
             d_user = js_divergence(
                 user_dist[item_idx].unsqueeze(0),
                 user_dist[candidate_idx],
@@ -360,14 +370,78 @@ def build_crds_pairs(
                     trans_dist[item_idx].unsqueeze(0),
                     trans_dist[candidate_idx],
                 ).squeeze(0)
-                cf_distance = lambda_user * d_user + (1.0 - lambda_user) * d_trans
+                candidate_cf_distance[item_idx] = lambda_user * d_user + (1.0 - lambda_user) * d_trans
             else:
-                cf_distance = d_user
+                candidate_cf_distance[item_idx] = d_user
+
+    global_semantic_threshold = None
+    global_cf_threshold = None
+    if global_hard_filter_quantile is not None:
+        global_hard_filter_quantile = float(global_hard_filter_quantile)
+        if not 0.0 < global_hard_filter_quantile < 1.0:
+            raise ValueError("global_hard_filter_quantile must be in (0, 1).")
+        global_semantic_threshold = stable_global_quantile(
+            semantic_similarities,
+            global_hard_filter_quantile,
+            seed=kmeans_seed,
+        )
+        if candidate_cf_distance is not None:
+            valid_cf_mask = torch.ones_like(candidate_cf_distance, dtype=torch.bool)
+            if use_reliability:
+                valid_cf_mask &= candidate_pair_reliability >= delta_r
+            valid_cf_values = candidate_cf_distance[valid_cf_mask]
+            if valid_cf_values.numel() > 0:
+                global_cf_threshold = stable_global_quantile(
+                    valid_cf_values,
+                    global_hard_filter_quantile,
+                    seed=kmeans_seed,
+                )
+
+    neg_items = torch.full((item_num, num_hard_neg), -1, dtype=torch.long)
+    neg_weights = torch.zeros((item_num, num_hard_neg), dtype=torch.float32)
+    neg_semantic_similarity = torch.zeros((item_num, num_hard_neg), dtype=torch.float32)
+    neg_cf_distance = torch.zeros((item_num, num_hard_neg), dtype=torch.float32)
+    neg_pair_reliability = torch.zeros((item_num, num_hard_neg), dtype=torch.float32)
+    item_user_sets = stats.get("item_user_sets")
+
+    for item_idx in range(item_num):
+        candidate_idx = semantic_indices[item_idx]
+        semantic_similarity = semantic_similarities[item_idx]
+        pair_reliability = candidate_pair_reliability[item_idx]
+        cf_distance = (
+            torch.zeros_like(semantic_similarity)
+            if candidate_cf_distance is None
+            else candidate_cf_distance[item_idx]
+        )
+        candidate_mask = torch.ones_like(candidate_idx, dtype=torch.bool)
+
+        if pair_mode == "no_cooccurrence":
+            candidate_mask &= filter_no_cooccurrence_candidates(item_idx, candidate_idx, item_user_sets)
+
+        if use_reliability:
+            candidate_mask &= pair_reliability >= delta_r
+
+        if global_semantic_threshold is not None:
+            candidate_mask &= semantic_similarity >= global_semantic_threshold
+
+        if pair_mode != "no_cooccurrence" and global_cf_threshold is not None:
+            candidate_mask &= cf_distance >= global_cf_threshold
+
+        candidate_idx = candidate_idx[candidate_mask]
+        semantic_similarity = semantic_similarity[candidate_mask]
+        pair_reliability = pair_reliability[candidate_mask]
+        cf_distance = cf_distance[candidate_mask]
+
+        if candidate_idx.numel() == 0:
+            continue
+
+        if pair_mode == "no_cooccurrence":
+            hard_score = normalize_values(semantic_similarity) * pair_reliability
+        else:
             hard_score = (
                 normalize_values(semantic_similarity)
                 * normalize_values(cf_distance)
                 * pair_reliability
-                * reliability_gate
             )
 
         top_count = min(num_hard_neg, candidate_idx.numel())
@@ -375,7 +449,7 @@ def build_crds_pairs(
         chosen_idx = candidate_idx[top_positions]
         chosen_semantic_similarity = semantic_similarity[top_positions]
         chosen_cf_distance = cf_distance[top_positions]
-        chosen_pair_reliability = pair_reliability[top_positions] * reliability_gate[top_positions]
+        chosen_pair_reliability = pair_reliability[top_positions]
 
         delta_s_value = torch.quantile(semantic_similarity, quantile)
         semantic_weight = torch.sigmoid(gamma_s * (chosen_semantic_similarity - delta_s_value))
@@ -387,10 +461,20 @@ def build_crds_pairs(
             cf_weight = torch.sigmoid(gamma_c * (chosen_cf_distance - delta_c_value))
             chosen_weight = chosen_pair_reliability * semantic_weight * cf_weight
 
+        positive_mask = chosen_weight > 0
+        if not positive_mask.any():
+            continue
+        chosen_idx = chosen_idx[positive_mask]
+        chosen_weight = chosen_weight[positive_mask]
+        chosen_semantic_similarity = chosen_semantic_similarity[positive_mask]
+        chosen_cf_distance = chosen_cf_distance[positive_mask]
+        top_count = chosen_idx.numel()
+
         neg_items[item_idx, :top_count] = chosen_idx.long()
         neg_weights[item_idx, :top_count] = chosen_weight.float()
         neg_semantic_similarity[item_idx, :top_count] = chosen_semantic_similarity.float()
         neg_cf_distance[item_idx, :top_count] = chosen_cf_distance.float()
+        neg_pair_reliability[item_idx, :top_count] = chosen_pair_reliability.float()
 
     output = {
         "neg_items": neg_items,
@@ -398,6 +482,9 @@ def build_crds_pairs(
         "reliability": reliability.float(),
         "neg_semantic_similarity": neg_semantic_similarity,
         "neg_cf_distance": neg_cf_distance,
+        "pair_semantic_similarity": neg_semantic_similarity.clone(),
+        "pair_cf_distance": neg_cf_distance.clone(),
+        "pair_reliability": neg_pair_reliability,
         "meta": {
             "dataset": dataset,
             "item_num": item_num,
@@ -417,6 +504,18 @@ def build_crds_pairs(
             "use_transition": use_transition,
             "use_reliability": use_reliability,
             "pair_mode": pair_mode,
+            "global_hard_filter_quantile": global_hard_filter_quantile,
+            "global_semantic_threshold": (
+                float(global_semantic_threshold.item())
+                if global_semantic_threshold is not None
+                else None
+            ),
+            "global_cf_threshold": (
+                float(global_cf_threshold.item())
+                if global_cf_threshold is not None
+                else None
+            ),
+            "valid_pair_count": int((neg_weights > 0).sum().item()),
         },
     }
     output_path = Path(output_path)
@@ -452,8 +551,12 @@ def collect_interaction_statistics(
                 user_id_map_path=user_id_map_path,
                 build_item_user_sets=build_item_user_sets,
             )
-        except ValueError:
-            pass
+        except ValueError as error:
+            logger.warning(
+                "Falling back from raw-train statistics to sequence statistics for %s: %s",
+                resolved_raw_train,
+                error,
+            )
 
     resolved_sequence = Path(sequence_path) if sequence_path else dataset_paths.get("sequence_path")
     if not resolved_sequence or not resolved_sequence.exists():
@@ -775,12 +878,15 @@ def select_crds_negatives(
     pair_data: Dict[str, Any],
     anchor_item_ids: torch.Tensor,
     num_neg_per_anchor: int,
+    neg_sampling: str = "random_top",
+    random_top_pool_size: Optional[int] = None,
 ) -> Dict[str, torch.Tensor]:
     all_neg_ids = pair_data["neg_items"][anchor_item_ids]
     all_neg_weights = pair_data["neg_weights"][anchor_item_ids]
     reliability = pair_data["reliability"]
-    semantic_stats = pair_data.get("neg_semantic_similarity")
-    cf_stats = pair_data.get("neg_cf_distance")
+    semantic_stats = pair_data.get("pair_semantic_similarity", pair_data.get("neg_semantic_similarity"))
+    cf_stats = pair_data.get("pair_cf_distance", pair_data.get("neg_cf_distance"))
+    pair_reliability_stats = pair_data.get("pair_reliability")
 
     num_anchors, stored_neg_count = all_neg_ids.shape
     use_count = min(num_neg_per_anchor, stored_neg_count)
@@ -798,7 +904,17 @@ def select_crds_negatives(
         if valid_positions.numel() == 0:
             continue
 
-        chosen_positions = valid_positions[:use_count]
+        if neg_sampling not in {"top", "random_top"}:
+            raise ValueError(f"Unsupported CRDS negative sampling mode: {neg_sampling}")
+
+        if neg_sampling == "top" or valid_positions.numel() <= use_count:
+            chosen_positions = valid_positions[:use_count]
+        else:
+            pool_size = random_top_pool_size if random_top_pool_size is not None else valid_positions.numel()
+            pool_size = max(use_count, min(int(pool_size), valid_positions.numel()))
+            pool_positions = valid_positions[:pool_size]
+            sampled_offsets = torch.randperm(pool_positions.numel())[:use_count]
+            chosen_positions = torch.sort(pool_positions[sampled_offsets]).values
         chosen_count = chosen_positions.numel()
         chosen_neg_ids = all_neg_ids[row_idx, chosen_positions]
         chosen_neg_weights = all_neg_weights[row_idx, chosen_positions]
@@ -806,11 +922,16 @@ def select_crds_negatives(
         selected_neg_ids[row_idx, :chosen_count] = chosen_neg_ids
         selected_neg_weights[row_idx, :chosen_count] = chosen_neg_weights
 
-        anchor_reliability = reliability[anchor_item_ids[row_idx]]
-        selected_pair_reliability[row_idx, :chosen_count] = torch.minimum(
-            anchor_reliability.expand(chosen_count),
-            reliability[chosen_neg_ids],
-        )
+        if pair_reliability_stats is not None:
+            selected_pair_reliability[row_idx, :chosen_count] = pair_reliability_stats[
+                anchor_item_ids[row_idx], chosen_positions
+            ]
+        else:
+            anchor_reliability = reliability[anchor_item_ids[row_idx]]
+            selected_pair_reliability[row_idx, :chosen_count] = torch.minimum(
+                anchor_reliability.expand(chosen_count),
+                reliability[chosen_neg_ids],
+            )
         if semantic_stats is not None:
             selected_semantic_stats[row_idx, :chosen_count] = semantic_stats[anchor_item_ids[row_idx], chosen_positions]
         if cf_stats is not None:

@@ -14,6 +14,8 @@ use_crds_simcse: true
 crds_weight: 0.05
 crds_tau: 0.2
 crds_num_neg_per_anchor: 4
+crds_neg_sampling: random_top
+crds_random_top_pool_size: 20
 
 semantic_topk: 200
 num_hard_neg: 20
@@ -27,6 +29,7 @@ delta_r: 0.3
 gamma_s: 10.0
 gamma_c: 10.0
 crds_quantile: 0.75
+crds_global_hard_filter_quantile: 0.75
 
 crds_no_reliability: false
 crds_no_transition: false

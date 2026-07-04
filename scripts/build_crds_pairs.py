@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument("--gamma_s", type=float, default=None)
     parser.add_argument("--gamma_c", type=float, default=None)
     parser.add_argument("--quantile", type=float, default=None)
+    parser.add_argument("--global_hard_filter_quantile", type=float, default=None)
     parser.add_argument("--chunk_size", type=int, default=None)
     parser.add_argument("--kmeans_iters", type=int, default=None)
     parser.add_argument("--kmeans_seed", type=int, default=None)
@@ -132,6 +133,10 @@ def main():
         gamma_s=merged.get("gamma_s", 10.0),
         gamma_c=merged.get("gamma_c", 10.0),
         quantile=merged.get("crds_quantile", merged.get("quantile", 0.75)),
+        global_hard_filter_quantile=merged.get(
+            "crds_global_hard_filter_quantile",
+            merged.get("global_hard_filter_quantile", 0.75),
+        ),
         use_transition=use_transition,
         use_reliability=use_reliability,
         pair_mode=pair_mode,

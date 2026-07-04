@@ -240,6 +240,16 @@ class CustomArguments:
         metadata={"help": "Number of CRDS hard negatives to use per anchor item."},
     )
 
+    crds_neg_sampling: str = field(
+        default="random_top",
+        metadata={"help": "How to sample CRDS negatives from the stored hard-negative pool."},
+    )
+
+    crds_random_top_pool_size: int = field(
+        default=20,
+        metadata={"help": "When using random_top, sample from the first N ranked negatives."},
+    )
+
     crds_no_reliability: bool = field(
         default=False,
         metadata={"help": "Accepted for experiment parity; pairs should usually be built with this setting already."},
@@ -292,11 +302,15 @@ class CRDSCollator(DefaultCollator):
         dataset,
         pair_data: Dict[str, Any],
         num_neg_per_anchor: int,
+        neg_sampling: str,
+        random_top_pool_size: int,
     ) -> None:
         super().__init__(model)
         self.dataset = dataset
         self.pair_data = pair_data
         self.num_neg_per_anchor = num_neg_per_anchor
+        self.neg_sampling = neg_sampling
+        self.random_top_pool_size = random_top_pool_size
 
     def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
         sentence_features, labels = super().__call__(features)
@@ -305,6 +319,8 @@ class CRDSCollator(DefaultCollator):
             self.pair_data,
             anchor_item_ids=item_ids,
             num_neg_per_anchor=self.num_neg_per_anchor,
+            neg_sampling=self.neg_sampling,
+            random_top_pool_size=self.random_top_pool_size,
         )
 
         neg_sentence_features = None
@@ -541,11 +557,22 @@ def main():
         if not custom_args.crds_pairs_path:
             raise ValueError("`use_crds_simcse=true` requires `crds_pairs_path`.")
         crds_pair_data = torch.load(custom_args.crds_pairs_path, map_location="cpu")
+        logger.info("Loaded CRDS pairs from %s", custom_args.crds_pairs_path)
+        if "meta" in crds_pair_data:
+            logger.info("CRDS pair metadata: %s", crds_pair_data["meta"])
+        logger.info(
+            "CRDS negative sampling: mode=%s, num_neg_per_anchor=%s, random_top_pool_size=%s",
+            custom_args.crds_neg_sampling,
+            custom_args.crds_num_neg_per_anchor,
+            custom_args.crds_random_top_pool_size,
+        )
         data_collator = CRDSCollator(
             model=model,
             dataset=train_dataset,
             pair_data=crds_pair_data,
             num_neg_per_anchor=custom_args.crds_num_neg_per_anchor,
+            neg_sampling=custom_args.crds_neg_sampling,
+            random_top_pool_size=custom_args.crds_random_top_pool_size,
         )
     else:
         data_collator = DefaultCollator(model)

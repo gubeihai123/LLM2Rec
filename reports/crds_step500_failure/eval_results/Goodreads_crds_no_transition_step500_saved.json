@@ -1,0 +1,75 @@
+{
+  "model": "SASRec",
+  "config": {
+    "model": "SASRec",
+    "num_proc": 1,
+    "cache_dir": "seqrec/cache/",
+    "log_dir": "seqrec/logs/",
+    "tensorboard_log_dir": "seqrec/tensorboard/",
+    "ckpt_dir": "seqrec/ckpt/",
+    "rand_seed": 2024,
+    "reproducibility": true,
+    "max_seq_length": 10,
+    "whiten": false,
+    "train_batch_size": 256,
+    "eval_batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "warmup_steps": 10000,
+    "steps": null,
+    "epochs": 15,
+    "max_grad_norm": 1.0,
+    "eval_interval": 5,
+    "patience": 3,
+    "topk": [
+      5,
+      10,
+      20
+    ],
+    "metrics": [
+      "ndcg",
+      "recall"
+    ],
+    "val_metric": "recall@20",
+    "run_id": "crds_no_transition_step500_saved",
+    "save": true,
+    "loss_type": "ce",
+    "hidden_size": 128,
+    "layer_num": 2,
+    "num_heads": 2,
+    "dropout": 0.3,
+    "sample_func": "random",
+    "adapter_dims": [
+      -1
+    ],
+    "dataset": "Goodreads",
+    "embedding": "item_info/Goodreads/Qwen2-0.5B-LLM2Rec-CRDS-no-transition_step500_title_item_embs.npy",
+    "exp_type": "srec",
+    "run_local_time": "Jul-04-2026_21-24-23",
+    "device": "cuda",
+    "use_ddp": false,
+    "source_dict": {
+      "Goodreads": "Goodreads/clean",
+      "Games_5core": "Video_Games/5-core/downstream",
+      "Movies_5core": "Movies_and_TV/5-core/downstream",
+      "Arts_5core": "Arts_Crafts_and_Sewing/5-core/downstream",
+      "Sports_5core": "Sports_and_Outdoors/5-core/downstream",
+      "Baby_5core": "Baby_Products/5-core/downstream"
+    },
+    "select_pool": [
+      1,
+      "4551"
+    ],
+    "item_num": "4550",
+    "eos_token": "4551"
+  },
+  "result": {
+    "ndcg@5": 0.0511576272547245,
+    "ndcg@10": 0.0639135017991066,
+    "ndcg@20": 0.07648150622844696,
+    "recall@5": 0.08346649259328842,
+    "recall@10": 0.12303788214921951,
+    "recall@20": 0.17304258048534393
+  },
+  "saved_model_ckpt": "reports/crds_step500_failure/downstream_ckpt/Goodreads/crds_no_transition_step500.pth"
+}

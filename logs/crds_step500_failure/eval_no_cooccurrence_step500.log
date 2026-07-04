@@ -1,0 +1,370 @@
+None
+{'model': 'SASRec', 'num_proc': 1, 'cache_dir': 'seqrec/cache/', 'log_dir': 'seqrec/logs/', 'tensorboard_log_dir': 'seqrec/tensorboard/', 'ckpt_dir': 'seqrec/ckpt/', 'rand_seed': 2024, 'reproducibility': True, 'max_seq_length': 10, 'whiten': False, 'train_batch_size': 256, 'eval_batch_size': 32, 'lr': 0.001, 'weight_decay': 0.0001, 'warmup_steps': 10000, 'steps': None, 'epochs': 15, 'max_grad_norm': 1.0, 'eval_interval': 5, 'patience': 3, 'topk': [5, 10, 20], 'metrics': ['ndcg', 'recall'], 'val_metric': 'recall@20', 'run_id': 'no_cooccurrence_step500_saved', 'save': True, 'loss_type': 'ce', 'hidden_size': 128, 'layer_num': 2, 'num_heads': 2, 'dropout': 0.3, 'sample_func': 'random', 'adapter_dims': [-1], 'dataset': 'Goodreads', 'embedding': 'item_info/Goodreads/Qwen2-0.5B-LLM2Rec-no-cooccurrence-step500_title_item_embs.npy', 'exp_type': 'srec', 'run_local_time': 'Jul-04-2026_21-35-45'}
+SASRec(
+  (pretrained_item_embeddings): Embedding(4551, 896, padding_idx=0)
+  (item_embeddings_adapter): Sequential(
+    (linear_0): Linear(in_features=896, out_features=128, bias=True)
+  )
+  (item_embeddings): Embedding2(
+    (embedding): Embedding(4551, 896, padding_idx=0)
+    (adapter): Sequential(
+      (linear_0): Linear(in_features=896, out_features=128, bias=True)
+    )
+  )
+  (positional_embeddings): Embedding(10, 128)
+  (emb_dropout): Dropout(p=0.3, inplace=False)
+  (transformer_encoder): TransformerEncoder_v2(
+    (layer): ModuleList(
+      (0-1): 2 x TransformerLayer_v2(
+        (multi_head_attention): MultiHeadAttention_v2(
+          (query): Linear(in_features=128, out_features=128, bias=True)
+          (key): Linear(in_features=128, out_features=128, bias=True)
+          (value): Linear(in_features=128, out_features=128, bias=True)
+          (softmax): Softmax(dim=-1)
+          (attn_dropout): Dropout(p=0.3, inplace=False)
+          (dense): Linear(in_features=128, out_features=128, bias=True)
+          (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
+          (out_dropout): Dropout(p=0.3, inplace=False)
+        )
+        (feed_forward): FeedForward(
+          (dense_1): Linear(in_features=128, out_features=256, bias=True)
+          (dense_2): Linear(in_features=256, out_features=128, bias=True)
+          (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
+          (dropout): Dropout(p=0.3, inplace=False)
+        )
+      )
+    )
+  )
+  (loss_func): CrossEntropyLoss()
+)
+OrderedDict({'ndcg@5': 0.03551383689045906, 'ndcg@10': 0.04733381047844887, 'ndcg@20': 0.05696806311607361, 'recall@5': 0.06328710168600082, 'recall@10': 0.0996333509683609, 'recall@20': 0.13789255917072296})
+[Epoch 5] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Goodreads_--e-Jul-04-2026_21-35-45-ab3a05.pth
+OrderedDict({'ndcg@5': 0.047033075243234634, 'ndcg@10': 0.060819223523139954, 'ndcg@20': 0.07161006331443787, 'recall@5': 0.07731547951698303, 'recall@10': 0.1199585497379303, 'recall@20': 0.16276103258132935})
+[Epoch 10] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Goodreads_--e-Jul-04-2026_21-35-45-ab3a05.pth
+OrderedDict({'ndcg@5': 0.05361958593130112, 'ndcg@10': 0.06622065603733063, 'ndcg@20': 0.07803253829479218, 'recall@5': 0.08775705099105835, 'recall@10': 0.12657420337200165, 'recall@20': 0.17352144420146942})
+[Epoch 15] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Goodreads_--e-Jul-04-2026_21-35-45-ab3a05.pth
+Best epoch: 15, Best val score: 0.17352144420146942
+Loaded best model checkpoint from seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Goodreads_--e-Jul-04-2026_21-35-45-ab3a05.pth
+OrderedDict({'ndcg@5': 0.051456864923238754, 'ndcg@10': 0.06493478268384933, 'ndcg@20': 0.07673951238393784, 'recall@5': 0.0848763957619667, 'recall@10': 0.12632766366004944, 'recall@20': 0.17323057353496552})
+{
+  "model": "SASRec",
+  "config": {
+    "model": "SASRec",
+    "num_proc": 1,
+    "cache_dir": "seqrec/cache/",
+    "log_dir": "seqrec/logs/",
+    "tensorboard_log_dir": "seqrec/tensorboard/",
+    "ckpt_dir": "seqrec/ckpt/",
+    "rand_seed": 2024,
+    "reproducibility": true,
+    "max_seq_length": 10,
+    "whiten": false,
+    "train_batch_size": 256,
+    "eval_batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "warmup_steps": 10000,
+    "steps": null,
+    "epochs": 15,
+    "max_grad_norm": 1.0,
+    "eval_interval": 5,
+    "patience": 3,
+    "topk": [
+      5,
+      10,
+      20
+    ],
+    "metrics": [
+      "ndcg",
+      "recall"
+    ],
+    "val_metric": "recall@20",
+    "run_id": "no_cooccurrence_step500_saved",
+    "save": true,
+    "loss_type": "ce",
+    "hidden_size": 128,
+    "layer_num": 2,
+    "num_heads": 2,
+    "dropout": 0.3,
+    "sample_func": "random",
+    "adapter_dims": [
+      -1
+    ],
+    "dataset": "Goodreads",
+    "embedding": "item_info/Goodreads/Qwen2-0.5B-LLM2Rec-no-cooccurrence-step500_title_item_embs.npy",
+    "exp_type": "srec",
+    "run_local_time": "Jul-04-2026_21-35-45",
+    "device": "cuda",
+    "use_ddp": false,
+    "source_dict": {
+      "Goodreads": "Goodreads/clean",
+      "Games_5core": "Video_Games/5-core/downstream",
+      "Movies_5core": "Movies_and_TV/5-core/downstream",
+      "Arts_5core": "Arts_Crafts_and_Sewing/5-core/downstream",
+      "Sports_5core": "Sports_and_Outdoors/5-core/downstream",
+      "Baby_5core": "Baby_Products/5-core/downstream"
+    },
+    "select_pool": [
+      1,
+      "4551"
+    ],
+    "item_num": "4550",
+    "eos_token": "4551"
+  },
+  "result": {
+    "ndcg@5": 0.051456864923238754,
+    "ndcg@10": 0.06493478268384933,
+    "ndcg@20": 0.07673951238393784,
+    "recall@5": 0.0848763957619667,
+    "recall@10": 0.12632766366004944,
+    "recall@20": 0.17323057353496552
+  },
+  "saved_model_ckpt": "reports/crds_step500_failure/downstream_ckpt/Goodreads/no_cooccurrence_step500.pth"
+}
+None
+{'model': 'SASRec', 'num_proc': 1, 'cache_dir': 'seqrec/cache/', 'log_dir': 'seqrec/logs/', 'tensorboard_log_dir': 'seqrec/tensorboard/', 'ckpt_dir': 'seqrec/ckpt/', 'rand_seed': 2024, 'reproducibility': True, 'max_seq_length': 10, 'whiten': False, 'train_batch_size': 256, 'eval_batch_size': 32, 'lr': 0.001, 'weight_decay': 0.0001, 'warmup_steps': 10000, 'steps': None, 'epochs': 15, 'max_grad_norm': 1.0, 'eval_interval': 5, 'patience': 3, 'topk': [5, 10, 20], 'metrics': ['ndcg', 'recall'], 'val_metric': 'recall@20', 'run_id': 'no_cooccurrence_step500_saved', 'save': True, 'loss_type': 'ce', 'hidden_size': 128, 'layer_num': 2, 'num_heads': 2, 'dropout': 0.3, 'sample_func': 'random', 'adapter_dims': [-1], 'dataset': 'Games_5core', 'embedding': 'item_info/Games_5core/Qwen2-0.5B-LLM2Rec-no-cooccurrence-step500_title_item_embs.npy', 'exp_type': 'srec', 'run_local_time': 'Jul-04-2026_21-38-32'}
+SASRec(
+  (pretrained_item_embeddings): Embedding(9518, 896, padding_idx=0)
+  (item_embeddings_adapter): Sequential(
+    (linear_0): Linear(in_features=896, out_features=128, bias=True)
+  )
+  (item_embeddings): Embedding2(
+    (embedding): Embedding(9518, 896, padding_idx=0)
+    (adapter): Sequential(
+      (linear_0): Linear(in_features=896, out_features=128, bias=True)
+    )
+  )
+  (positional_embeddings): Embedding(10, 128)
+  (emb_dropout): Dropout(p=0.3, inplace=False)
+  (transformer_encoder): TransformerEncoder_v2(
+    (layer): ModuleList(
+      (0-1): 2 x TransformerLayer_v2(
+        (multi_head_attention): MultiHeadAttention_v2(
+          (query): Linear(in_features=128, out_features=128, bias=True)
+          (key): Linear(in_features=128, out_features=128, bias=True)
+          (value): Linear(in_features=128, out_features=128, bias=True)
+          (softmax): Softmax(dim=-1)
+          (attn_dropout): Dropout(p=0.3, inplace=False)
+          (dense): Linear(in_features=128, out_features=128, bias=True)
+          (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
+          (out_dropout): Dropout(p=0.3, inplace=False)
+        )
+        (feed_forward): FeedForward(
+          (dense_1): Linear(in_features=128, out_features=256, bias=True)
+          (dense_2): Linear(in_features=256, out_features=128, bias=True)
+          (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
+          (dropout): Dropout(p=0.3, inplace=False)
+        )
+      )
+    )
+  )
+  (loss_func): CrossEntropyLoss()
+)
+OrderedDict({'ndcg@5': 0.04015477001667023, 'ndcg@10': 0.04744812846183777, 'ndcg@20': 0.0543813556432724, 'recall@5': 0.0558021143078804, 'recall@10': 0.07844928652048111, 'recall@20': 0.10599138587713242})
+[Epoch 5] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Games_5core_--Jul-04-2026_21-38-32-49964a.pth
+OrderedDict({'ndcg@5': 0.04650302231311798, 'ndcg@10': 0.054740265011787415, 'ndcg@20': 0.062379010021686554, 'recall@5': 0.065591961145401, 'recall@10': 0.09117608517408371, 'recall@20': 0.12145934253931046})
+[Epoch 10] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Games_5core_--Jul-04-2026_21-38-32-49964a.pth
+OrderedDict({'ndcg@5': 0.04692327231168747, 'ndcg@10': 0.0551925003528595, 'ndcg@20': 0.06317483633756638, 'recall@5': 0.06702779978513718, 'recall@10': 0.0928729921579361, 'recall@20': 0.12459208816289902})
+[Epoch 15] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Games_5core_--Jul-04-2026_21-38-32-49964a.pth
+Best epoch: 15, Best val score: 0.12459208816289902
+Loaded best model checkpoint from seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Games_5core_--Jul-04-2026_21-38-32-49964a.pth
+OrderedDict({'ndcg@5': 0.04638029634952545, 'ndcg@10': 0.0533209890127182, 'ndcg@20': 0.05914968624711037, 'recall@5': 0.06330353021621704, 'recall@10': 0.08483978360891342, 'recall@20': 0.10800757259130478})
+{
+  "model": "SASRec",
+  "config": {
+    "model": "SASRec",
+    "num_proc": 1,
+    "cache_dir": "seqrec/cache/",
+    "log_dir": "seqrec/logs/",
+    "tensorboard_log_dir": "seqrec/tensorboard/",
+    "ckpt_dir": "seqrec/ckpt/",
+    "rand_seed": 2024,
+    "reproducibility": true,
+    "max_seq_length": 10,
+    "whiten": false,
+    "train_batch_size": 256,
+    "eval_batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "warmup_steps": 10000,
+    "steps": null,
+    "epochs": 15,
+    "max_grad_norm": 1.0,
+    "eval_interval": 5,
+    "patience": 3,
+    "topk": [
+      5,
+      10,
+      20
+    ],
+    "metrics": [
+      "ndcg",
+      "recall"
+    ],
+    "val_metric": "recall@20",
+    "run_id": "no_cooccurrence_step500_saved",
+    "save": true,
+    "loss_type": "ce",
+    "hidden_size": 128,
+    "layer_num": 2,
+    "num_heads": 2,
+    "dropout": 0.3,
+    "sample_func": "random",
+    "adapter_dims": [
+      -1
+    ],
+    "dataset": "Games_5core",
+    "embedding": "item_info/Games_5core/Qwen2-0.5B-LLM2Rec-no-cooccurrence-step500_title_item_embs.npy",
+    "exp_type": "srec",
+    "run_local_time": "Jul-04-2026_21-38-32",
+    "device": "cuda",
+    "use_ddp": false,
+    "source_dict": {
+      "Goodreads": "Goodreads/clean",
+      "Games_5core": "Video_Games/5-core/downstream",
+      "Movies_5core": "Movies_and_TV/5-core/downstream",
+      "Arts_5core": "Arts_Crafts_and_Sewing/5-core/downstream",
+      "Sports_5core": "Sports_and_Outdoors/5-core/downstream",
+      "Baby_5core": "Baby_Products/5-core/downstream"
+    },
+    "select_pool": [
+      1,
+      "9518"
+    ],
+    "item_num": "9517",
+    "eos_token": "9518"
+  },
+  "result": {
+    "ndcg@5": 0.04638029634952545,
+    "ndcg@10": 0.0533209890127182,
+    "ndcg@20": 0.05914968624711037,
+    "recall@5": 0.06330353021621704,
+    "recall@10": 0.08483978360891342,
+    "recall@20": 0.10800757259130478
+  },
+  "saved_model_ckpt": "reports/crds_step500_failure/downstream_ckpt/Games_5core/no_cooccurrence_step500.pth"
+}
+None
+{'model': 'SASRec', 'num_proc': 1, 'cache_dir': 'seqrec/cache/', 'log_dir': 'seqrec/logs/', 'tensorboard_log_dir': 'seqrec/tensorboard/', 'ckpt_dir': 'seqrec/ckpt/', 'rand_seed': 2024, 'reproducibility': True, 'max_seq_length': 10, 'whiten': False, 'train_batch_size': 256, 'eval_batch_size': 32, 'lr': 0.001, 'weight_decay': 0.0001, 'warmup_steps': 10000, 'steps': None, 'epochs': 15, 'max_grad_norm': 1.0, 'eval_interval': 5, 'patience': 3, 'topk': [5, 10, 20], 'metrics': ['ndcg', 'recall'], 'val_metric': 'recall@20', 'run_id': 'no_cooccurrence_step500_saved', 'save': True, 'loss_type': 'ce', 'hidden_size': 128, 'layer_num': 2, 'num_heads': 2, 'dropout': 0.3, 'sample_func': 'random', 'adapter_dims': [-1], 'dataset': 'Movies_5core', 'embedding': 'item_info/Movies_5core/Qwen2-0.5B-LLM2Rec-no-cooccurrence-step500_title_item_embs.npy', 'exp_type': 'srec', 'run_local_time': 'Jul-04-2026_21-41-12'}
+SASRec(
+  (pretrained_item_embeddings): Embedding(13191, 896, padding_idx=0)
+  (item_embeddings_adapter): Sequential(
+    (linear_0): Linear(in_features=896, out_features=128, bias=True)
+  )
+  (item_embeddings): Embedding2(
+    (embedding): Embedding(13191, 896, padding_idx=0)
+    (adapter): Sequential(
+      (linear_0): Linear(in_features=896, out_features=128, bias=True)
+    )
+  )
+  (positional_embeddings): Embedding(10, 128)
+  (emb_dropout): Dropout(p=0.3, inplace=False)
+  (transformer_encoder): TransformerEncoder_v2(
+    (layer): ModuleList(
+      (0-1): 2 x TransformerLayer_v2(
+        (multi_head_attention): MultiHeadAttention_v2(
+          (query): Linear(in_features=128, out_features=128, bias=True)
+          (key): Linear(in_features=128, out_features=128, bias=True)
+          (value): Linear(in_features=128, out_features=128, bias=True)
+          (softmax): Softmax(dim=-1)
+          (attn_dropout): Dropout(p=0.3, inplace=False)
+          (dense): Linear(in_features=128, out_features=128, bias=True)
+          (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
+          (out_dropout): Dropout(p=0.3, inplace=False)
+        )
+        (feed_forward): FeedForward(
+          (dense_1): Linear(in_features=128, out_features=256, bias=True)
+          (dense_2): Linear(in_features=256, out_features=128, bias=True)
+          (LayerNorm): LayerNorm((128,), eps=1e-12, elementwise_affine=True)
+          (dropout): Dropout(p=0.3, inplace=False)
+        )
+      )
+    )
+  )
+  (loss_func): CrossEntropyLoss()
+)
+OrderedDict({'ndcg@5': 0.0226883627474308, 'ndcg@10': 0.0268021859228611, 'ndcg@20': 0.030056390911340714, 'recall@5': 0.03546566888689995, 'recall@10': 0.0481424480676651, 'recall@20': 0.06103905662894249})
+[Epoch 5] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Movies_5core_-Jul-04-2026_21-41-12-eb2466.pth
+OrderedDict({'ndcg@5': 0.026678606867790222, 'ndcg@10': 0.03128247335553169, 'ndcg@20': 0.0348767526447773, 'recall@5': 0.040961384773254395, 'recall@10': 0.05503040924668312, 'recall@20': 0.06924598664045334})
+[Epoch 10] Saved model checkpoint to seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Movies_5core_-Jul-04-2026_21-41-12-eb2466.pth
+OrderedDict({'ndcg@5': 0.02670387364923954, 'ndcg@10': 0.03116501495242119, 'ndcg@20': 0.03469467535614967, 'recall@5': 0.04154759272933006, 'recall@10': 0.05525023862719536, 'recall@20': 0.06924598664045334})
+Patience for 5 Times
+Early stopping at epoch 15
+Best epoch: 10, Best val score: 0.06924598664045334
+Loaded best model checkpoint from seqrec/ckpt/no_cooccurrence_step500_saved-scripts|run_seqrec_eval.py_--dataset_Movies_5core_-Jul-04-2026_21-41-12-eb2466.pth
+OrderedDict({'ndcg@5': 0.03775060176849365, 'ndcg@10': 0.04233959689736366, 'ndcg@20': 0.04620687663555145, 'recall@5': 0.05334115028381348, 'recall@10': 0.06755568832159042, 'recall@20': 0.0828692838549614})
+{
+  "model": "SASRec",
+  "config": {
+    "model": "SASRec",
+    "num_proc": 1,
+    "cache_dir": "seqrec/cache/",
+    "log_dir": "seqrec/logs/",
+    "tensorboard_log_dir": "seqrec/tensorboard/",
+    "ckpt_dir": "seqrec/ckpt/",
+    "rand_seed": 2024,
+    "reproducibility": true,
+    "max_seq_length": 10,
+    "whiten": false,
+    "train_batch_size": 256,
+    "eval_batch_size": 32,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "warmup_steps": 10000,
+    "steps": null,
+    "epochs": 15,
+    "max_grad_norm": 1.0,
+    "eval_interval": 5,
+    "patience": 3,
+    "topk": [
+      5,
+      10,
+      20
+    ],
+    "metrics": [
+      "ndcg",
+      "recall"
+    ],
+    "val_metric": "recall@20",
+    "run_id": "no_cooccurrence_step500_saved",
+    "save": true,
+    "loss_type": "ce",
+    "hidden_size": 128,
+    "layer_num": 2,
+    "num_heads": 2,
+    "dropout": 0.3,
+    "sample_func": "random",
+    "adapter_dims": [
+      -1
+    ],
+    "dataset": "Movies_5core",
+    "embedding": "item_info/Movies_5core/Qwen2-0.5B-LLM2Rec-no-cooccurrence-step500_title_item_embs.npy",
+    "exp_type": "srec",
+    "run_local_time": "Jul-04-2026_21-41-12",
+    "device": "cuda",
+    "use_ddp": false,
+    "source_dict": {
+      "Goodreads": "Goodreads/clean",
+      "Games_5core": "Video_Games/5-core/downstream",
+      "Movies_5core": "Movies_and_TV/5-core/downstream",
+      "Arts_5core": "Arts_Crafts_and_Sewing/5-core/downstream",
+      "Sports_5core": "Sports_and_Outdoors/5-core/downstream",
+      "Baby_5core": "Baby_Products/5-core/downstream"
+    },
+    "select_pool": [
+      1,
+      "13191"
+    ],
+    "item_num": "13190",
+    "eos_token": "13191"
+  },
+  "result": {
+    "ndcg@5": 0.03775060176849365,
+    "ndcg@10": 0.04233959689736366,
+    "ndcg@20": 0.04620687663555145,
+    "recall@5": 0.05334115028381348,
+    "recall@10": 0.06755568832159042,
+    "recall@20": 0.0828692838549614
+  },
+  "saved_model_ckpt": "reports/crds_step500_failure/downstream_ckpt/Movies_5core/no_cooccurrence_step500.pth"
+}
