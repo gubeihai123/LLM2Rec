@@ -15,7 +15,8 @@ np.random.seed(0)
 torch.manual_seed(0)
 
 from huggingface_hub import login
-login(token=token)
+if token:
+    login(token=token)
 
 
 dataset_name_mappings = {

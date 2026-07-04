@@ -2,7 +2,7 @@
 
 # Define model settings as tuples: (save_info, model_path, bidirectional)
 models_list=(
-    # "Qwen2-0.5B-Backbone /home/yingzhi/huggingface_data/hub/Qwen2-0.5B"
+    # "Qwen2-0.5B-Backbone ./models/Qwen2-0.5B"
     "Qwen2-0.5B-LLM2Rec-IEM_step500 ./output/iem_stage2/Qwen2-0.5B-AmazonMix6-CSFT/checkpoint-500"
     "Qwen2-0.5B-LLM2Rec-IEM_step1000 ./output/iem_stage2/Qwen2-0.5B-AmazonMix6-CSFT/checkpoint-1000"
 )

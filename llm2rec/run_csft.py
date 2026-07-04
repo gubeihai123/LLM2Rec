@@ -50,7 +50,7 @@ def get_cosine_schedule_with_warmup(
 
 def train(
     # model/data params
-    base_model: str = "/home/yzhe/workspace/huggingface_data/hub/Qwen2-0.5B",  # the only required argument
+    base_model: str = "./models/Qwen2-0.5B",  # the only required argument
     train_file: str="./data/AmazonMix6/5-core/train/AmazonMix-6.csv",
     eval_file: str="./data/AmazonMix6/5-core/valid/AmazonMix-6.csv",
     output_dir: str = "./output/Test-SFT",
@@ -212,7 +212,7 @@ def train(
             load_best_model_at_end=True,
             ddp_find_unused_parameters=False if ddp else None,
             group_by_length=group_by_length,
-            report_to="wandb",
+            report_to=[],
         ),
         data_collator=transformers.DataCollatorForSeq2Seq(
             tokenizer, pad_to_multiple_of=8, return_tensors="pt", padding=True

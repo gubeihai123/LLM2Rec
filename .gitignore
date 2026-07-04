@@ -6,18 +6,19 @@ data_EasyRec_setting/
 
 checkpoints/
 log/
+logs/
 runs/
 
 __pycache__/
 *.ttc
 wandb/
 output/
+models/
 
 seqrec/ckpt/
 item_info/
 item_info
 cache/
-Results/
 
 Rebuttal/
 

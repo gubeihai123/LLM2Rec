@@ -1,3 +1,5 @@
+import os
+
 import torch
 import numpy as np
 from typing import Union
@@ -30,11 +32,16 @@ class Runner:
         # Automatically set devices and ddp
         self.config['device'], self.config['use_ddp'] = init_device()
 
-        wandb.init(
-            project="LLM2Rec_Eval",  # Replace with your project name
-            name=get_file_name(self.config),              # Set the desired run name
-        )
-        self.accelerator = Accelerator(log_with='wandb')
+        wandb_disabled = os.environ.get("WANDB_DISABLED", "").lower() in {"1", "true", "yes"} or \
+            os.environ.get("WANDB_MODE", "").lower() == "disabled"
+        if wandb_disabled:
+            self.accelerator = Accelerator()
+        else:
+            wandb.init(
+                project="LLM2Rec_Eval",  # Replace with your project name
+                name=get_file_name(self.config),              # Set the desired run name
+            )
+            self.accelerator = Accelerator(log_with='wandb')
 
         self.config['accelerator'] = self.accelerator
 

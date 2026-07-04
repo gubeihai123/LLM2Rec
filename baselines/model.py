@@ -1,5 +1,6 @@
 import sys
 sys.path.append("baselines/EasyRec")
+import os
 import torch
 from baselines.EasyRecModel import Easyrec_encoder
 import torch.nn.functional as F
@@ -11,9 +12,10 @@ class EasyRec(torch.nn.Module):
     def __init__(self, device):
         super().__init__()
         self.device = device
-        self.config = AutoConfig.from_pretrained("hkuds/easyrec-roberta-large")
-        self.model = Easyrec_encoder.from_pretrained("hkuds/easyrec-roberta-large", config=self.config,).to(self.device)
-        self.tokenizer = AutoTokenizer.from_pretrained("hkuds/easyrec-roberta-large", use_fast=False,)
+        model_name = os.environ.get("EASYREC_MODEL_PATH", "hkuds/easyrec-roberta-large")
+        self.config = AutoConfig.from_pretrained(model_name)
+        self.model = Easyrec_encoder.from_pretrained(model_name, config=self.config,).to(self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False,)
 
     def forward(self, x):
         # x is a batch of text sequences
@@ -151,7 +153,6 @@ class GTE_7B(torch.nn.Module):
             pooled_embeddings = self.last_token_pool(outputs.last_hidden_state, inputs['attention_mask'])
             normalized_embeddings = F.normalize(pooled_embeddings, p=2, dim=1)
         return normalized_embeddings
-
 
 
 

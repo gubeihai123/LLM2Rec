@@ -1,5 +1,5 @@
 {
-    "model_name_or_path": "output/Qwen2-0.5B-CSFT-AmazonMix-6/checkpoint-10000",
+    "model_name_or_path": "output/csft/Qwen2-0.5B-AmazonMix-6",
     "dataset_name": "data/AmazonMix-6/5-core/info/item_titles.txt",
     "per_device_train_batch_size": 32,
     "per_device_eval_batch_size": 32,
