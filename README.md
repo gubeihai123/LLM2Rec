@@ -38,6 +38,18 @@ bash run_LLM2Rec_IEM.sh
 
 Please change the necessary configs of your own device (e.g. path of the saved pre-trained LLMs) before executing.
 
+### Experimental: Reliability-Calibrated Local CF Distillation
+
+The optional IEM2-only CF distillation pipeline keeps CSFT, MNTP, and downstream recommenders unchanged. It requires a SASRec teacher item embedding stored as a tensor whose rows exactly match `data/AmazonMix-6/5-core/info/item_titles.txt` line order.
+
+```bash
+TEACHER_ITEM_EMB_PATH=/path/to/sasrec_teacher_item_emb.pt \
+PYTHON_BIN=/path/to/venv/bin/python \
+bash run_LLM2Rec_IEM_CF_Distill.sh
+```
+
+The script precomputes top-16 teacher neighborhoods, then runs the uncalibrated and reliability-calibrated configurations on one GPU. Set `SEQUENCE_PATH=""` to omit support weighting; reliability then uses teacher confidence only. Use `llm2rec/train_simcse_cfkd_debug_config.json` for a five-step smoke test first. The baseline `llm2rec/train_simcse_config.json` leaves distillation disabled (`cf_distill_lambda = 0`) and retains its original SimCSE behavior.
+
 ## Evaluation
 
 We integrate the evaluation process, including embedding extraction and training downstream sequential recommenders, into one script, which can be easily executed by

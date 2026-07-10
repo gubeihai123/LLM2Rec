@@ -29,6 +29,9 @@ class ItemTitleData(Dataset):
         self.separator = separator
 
         self.data = []
+        # Keep the original title order for optional item-level distillation.
+        self.item_texts = []
+        self.item_titles = []
         self.load_data(file_path)
 
     def __len__(self):
@@ -56,6 +59,8 @@ class ItemTitleData(Dataset):
                 query = self.separator + sample
                 pos = self.separator + sample
                 data_map[dataset].append(id_)
+                self.item_texts.append(query)
+                self.item_titles.append(sample)
 
                 all_samples.append(
                     DataSample(
@@ -108,7 +113,7 @@ class ItemTitleData(Dataset):
         sample = self.data[index]
         if self.split == "train":
             return TrainSample(
-                texts=[sample.query, sample.positive], label=1.0
+                guid=str(sample.id_), texts=[sample.query, sample.positive], label=1.0
             )
         elif self.split == "validation":
             assert False, "RecData does not have a validation split."
